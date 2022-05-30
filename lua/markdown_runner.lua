@@ -2,12 +2,21 @@ local api = vim.api
 
 -- Util Functions
 
+local function readfile_string(p)
+  local lines = vim.fn.readfile(p)
+  return table.concat(lines, "\n")
+end
+
+local function cookie_path()
+  return vim.fn.stdpath("cache") .. "/mdr-cookies.txt"
+end
+
 local function buf_get_line(l)
   return api.nvim_buf_get_lines(0, l-1, l, true)[1]
 end
 
 local function echo_err(msg)
-  api.nvim_echo({{"MarkdownRunner: " .. msg, "ErrorMsg"}}, false, {})
+  api.nvim_echo({{"MarkdownRunner: " .. (msg or ""), "ErrorMsg"}}, false, {})
 end
 
 local function get_code_block(line)
@@ -20,7 +29,7 @@ local function get_code_block(line)
     assert(s > 0, "not in a markdown code block")
   end
 
-  -- Get ned line
+  -- Get end line
   local start_line = buf_get_line(s)
   local e = s + 1
   local line_count = api.nvim_buf_line_count(0)
@@ -29,7 +38,7 @@ local function get_code_block(line)
     if string.match(line, "^```") then break end
     table.insert(lines, line)
     e = e + 1
-    assert(e < line_count, "not in a markdown code block")
+    assert(e <= line_count, "not in a markdown code block")
   end
 
   assert(#lines > 0, "code block is empty")
@@ -37,7 +46,7 @@ local function get_code_block(line)
   return {
     start_line=s,
     end_line=e,
-    cmd=string.match(start_line, "^```(%w+)"),
+    cmd=string.match(start_line, "^```(%S+)"),
     src=lines
   }
 end
@@ -72,11 +81,89 @@ local function run_vim(block)
   return ""
 end
 
+local function run_api(block)
+  local cookie_file = cookie_path()
+  local tmp = vim.fn.tempname() .. ".txt"
+  local method, url = unpack(vim.split(block.src[1], " "))
+  local in_body = false
+  local body = {}
+  local curl = {"curl", "-q", "-sS",
+                "-b " .. vim.fn.shellescape(cookie_file),
+                "-c " .. vim.fn.shellescape(cookie_file),
+                "-X", method}
+  local json = string.match(block.cmd, "^api%.json") ~= nil
+  local info = string.match(block.cmd, "%.info") ~= nil
+
+  if info then
+    -- table.insert(curl, "-w '%{stderr}Fetched in %{time_total}s\n\n'")
+    table.insert(curl, "-D " .. vim.fn.shellescape(tmp))
+  end
+
+  if method == "GET" or method == "get" then
+    table.insert(curl, "-G")
+  end
+
+  table.insert(curl, url)
+
+  if json then
+    table.insert(curl, "-H 'Content-Type: application/json'")
+    table.insert(curl, "-H 'Accept: application/json'")
+  end
+
+  for i, line in pairs(block.src) do
+    if i > 1 and not string.match(line, "^[#<]") then
+      if line == "" then
+        in_body = true
+      elseif string.match(line, "^-") then
+        table.insert(curl, line)
+      elseif string.match(line, "^%w+=.+") then
+        table.insert(curl, "--data-urlencode")
+        table.insert(curl, vim.fn.shellescape(line))
+      elseif string.match(line, "^[%w-]+:.+") then
+        table.insert(curl, "-H")
+        table.insert(curl, vim.fn.shellescape(line))
+      elseif in_body then
+        table.insert(body, line)
+      end
+    end
+  end
+
+  if #body > 0 then
+    table.insert(curl, "-d")
+    table.insert(curl, vim.fn.shellescape(table.concat(body, "\n")))
+  end
+
+  local cmd = table.concat(curl, " ")
+
+  local response = vim.fn.system(cmd)
+
+  if json then
+    local pretty_response = vim.fn.system("json_pp -json_opt indent,space_after", response)
+    if vim.v.shell_error == 0 then
+      response = pretty_response
+    end
+  end
+
+  if info then
+    local headers = readfile_string(tmp)
+    vim.fn.delete(tmp)
+    return headers .. "\n" .. response
+  else
+    return response
+  end
+
+  -- return (string.gsub(response, "\r", ""))
+end
+
 local runners = {
   javascript = "node",
   js = "node",
   go = run_go,
   vim = run_vim,
+  api = run_api,
+  ["api.json"] = run_api,
+  ["api.json.info"] = run_api,
+  ["api.info"] = run_api
 }
 
 local function get_cmd(block)
@@ -105,12 +192,13 @@ local function insert()
   local block = get_code_block()
   local content = "\n```markdown-runner\n" .. run(block) .. "```"
   local l = block.end_line
+  local line_count = api.nvim_buf_line_count(0)
 
   -- Delete existing results block if present
-  if buf_get_line(l+1) == "" and buf_get_line(l+2) == "```markdown-runner" then
+  if l + 2 < line_count and buf_get_line(l+1) == "" and buf_get_line(l+2) == "```markdown-runner" then
     local blk = get_code_block(l+2)
     local end_line = blk.end_line
-    if buf_get_line(end_line + 1) == "" then 
+    if end_line + 1 < line_count and buf_get_line(end_line + 1) == "" then 
       end_line = end_line + 1
     end
     api.nvim_buf_set_lines(0, blk.start_line - 1, end_line, true, {})
@@ -128,7 +216,13 @@ local function wrap_handle_error(fn)
   end
 end
 
+local function clear_cache()
+  vim.fn.delete(cookie_path())
+  print("MarkdownRunner: Cleared all cached data")
+end
+
 return {
   echo=wrap_handle_error(echo),
-  insert=wrap_handle_error(insert)
+  insert=wrap_handle_error(insert),
+  clear_cache=wrap_handle_error(clear_cache)
 }

@@ -84,3 +84,40 @@ fmt.Println(string(body))
 ### Vimscript
 
 Vimscript code blocks will be directly sourced.
+
+### REST Client
+
+A simple `curl` wrapping REST client is also included and can be used by specifying an `api` code block. The `api` block tag can include options by appending the following strings:
+
+- `.json` adds `Accept` and `Content-Type` headers specifying `application/json`.
+- `.info` prints response headers along with the response body.
+
+The syntax for the REST client is straightforward, as illustrated by these examples:
+
+~~~
+```api.json.info
+GET localhost:3000/people
+X-User: Admin
+q=John
+-u user:pass
+```
+~~~
+
+- Headers are specified in the format `Header: Value`.
+- Query params are specified in the format `param=value`.
+- Lines starting with `-` can be used to pass options directly to `curl`, in this example adding basic auth username and password.
+
+In `POST`, `PATCH` or `PUT` requests, the body is separated from the front matter by a single line:
+
+~~~
+```api.json.info
+POST localhost:3000/people
+
+{
+  "firstName": "New",
+  "lastName": "Person",
+}
+```
+~~~
+
+The wrapper enables `curl`'s cooke jar functionality. The cookies can be cleared by running `:MarkdownRunnerClearCache`.
