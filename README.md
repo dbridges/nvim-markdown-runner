@@ -1,4 +1,4 @@
-# vim-markdown-runner
+# nvim-markdown-runner
 
 Make your markdown interactive!
 
@@ -9,7 +9,7 @@ Make your markdown interactive!
 Use your preferred package management tool, for paq:
 
 ```lua
-require "paq" { "dbridges/vim-markdown-runner" }
+require "paq" { "dbridges/nvim-markdown-runner" }
 ```
 
 ## Usage
