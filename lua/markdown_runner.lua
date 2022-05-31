@@ -151,8 +151,6 @@ local function run_api(block)
   else
     return response
   end
-
-  -- return (string.gsub(response, "\r", ""))
 end
 
 local runners = {
@@ -161,22 +159,23 @@ local runners = {
   go = run_go,
   vim = run_vim,
   api = run_api,
-  ["api.json"] = run_api,
-  ["api.json.info"] = run_api,
-  ["api.info"] = run_api
 }
 
-local function get_cmd(block)
+local function get_runner(block)
   local lookup = vim.tbl_extend("force", runners, vim.g.markdown_runners or {})
-  return lookup[block.cmd] or block.cmd or vim.env.SHELL or "sh"
+  if block.cmd == nil then return vim.env.SHELL end
+  for k, v in pairs(lookup) do
+    if vim.split(block.cmd, "%.")[1] == k then return v end
+  end
+  return block.cmd
 end
 
 local function run(block)
-  local cmd = get_cmd(block)
-  if type(cmd) == "string" then
-    return vim.fn.system(cmd, block.src)
-  elseif type(cmd) == "function" then
-    return cmd(block)
+  local runner = get_runner(block)
+  if type(runner) == "string" then
+    return vim.fn.system(runner, block.src)
+  elseif type(runner) == "function" then
+    return runner(block)
   else
     error("Invalid command type")
   end
