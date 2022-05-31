@@ -46,3 +46,23 @@ print("Hello from Swift")
 ```vim
 echo "Hello from Vim"
 ```
+
+```api.json
+POST localhost:5000/people
+X-User: Admin
+
+{
+  "name": "New Person"
+}
+```
+
+```api.json.info
+GET localhost:5000/people
+X-User: Admin
+q=New
+```
+
+```api.json.info
+GET localhost:5000/test-auth
+-u user:pass
+```
