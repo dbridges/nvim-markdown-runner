@@ -18,8 +18,8 @@ local function run(block)
     return vim.fn.system(runner, block.src)
   elseif type(runner) == "function" then
     local resp = runner(block)
-    if string.sub(resp, -1, -1) == "\n" then
-      resp = resp + "\n"
+    if string.sub(resp, -1, -1) ~= "\n" then
+      resp = resp .. "\n"
     end
     return resp
   else
