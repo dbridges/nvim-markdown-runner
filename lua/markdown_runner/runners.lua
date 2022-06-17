@@ -66,7 +66,7 @@ local function run_api(block)
         in_body = true
       elseif string.match(line, "^-") then
         table.insert(curl, line)
-      elseif string.match(line, "^%w+=.+") then
+      elseif string.match(line, "^%S+=.+") then
         table.insert(curl, "--data-urlencode")
         table.insert(curl, vim.fn.shellescape(line))
       elseif string.match(line, "^%S+:.+") then

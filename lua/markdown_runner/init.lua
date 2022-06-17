@@ -17,7 +17,11 @@ local function run(block)
   if type(runner) == "string" then
     return vim.fn.system(runner, block.src)
   elseif type(runner) == "function" then
-    return runner(block)
+    local resp = runner(block)
+    if string.sub(resp, -1, -1) == "\n" then
+      resp = resp + "\n"
+    end
+    return resp
   else
     error("Invalid command type")
   end
