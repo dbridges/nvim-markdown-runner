@@ -54,8 +54,10 @@ local function run_api(block)
   table.insert(curl, url)
 
   if json then
-    table.insert(curl, "-H 'Content-Type: application/json'")
     table.insert(curl, "-H 'Accept: application/json'")
+    if method ~= "GET" then
+      table.insert(curl, "-H 'Content-Type: application/json'")
+    end
   end
 
   for i, line in pairs(block.src) do
@@ -67,7 +69,7 @@ local function run_api(block)
       elseif string.match(line, "^%w+=.+") then
         table.insert(curl, "--data-urlencode")
         table.insert(curl, vim.fn.shellescape(line))
-      elseif string.match(line, "^[%w-]+:.+") then
+      elseif string.match(line, "^%S+:.+") then
         table.insert(curl, "-H")
         table.insert(curl, vim.fn.shellescape(line))
       elseif in_body then
