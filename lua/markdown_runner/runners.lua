@@ -64,6 +64,8 @@ local function run_api(block)
     if i > 1 and not string.match(line, "^[#<]") then
       if line == "" then
         in_body = true
+      elseif in_body then
+        table.insert(body, line)
       elseif string.match(line, "^-") then
         table.insert(curl, line)
       elseif string.match(line, "^%S+=.+") then
@@ -72,8 +74,6 @@ local function run_api(block)
       elseif string.match(line, "^%S+:.+") then
         table.insert(curl, "-H")
         table.insert(curl, vim.fn.shellescape(line))
-      elseif in_body then
-        table.insert(body, line)
       end
     end
   end
