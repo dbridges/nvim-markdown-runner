@@ -39,12 +39,17 @@ local function run_api(block)
                 "-b " .. vim.fn.shellescape(cookie_file),
                 "-c " .. vim.fn.shellescape(cookie_file),
                 "-X", method}
-  local json = string.match(block.cmd, "^api%.json") ~= nil
-  local info = string.match(block.cmd, "%.info") ~= nil
+  local opts = vim.split(block.cmd, ".", true)
+  local json = not vim.tbl_contains(opts, "raw")
+  local info = vim.tbl_contains(opts, "info")
+  local time = vim.tbl_contains(opts, "time")
 
   if info then
-    -- table.insert(curl, "-w '%{stderr}Fetched in %{time_total}s\n\n'")
     table.insert(curl, "-D " .. vim.fn.shellescape(tmp))
+  end
+
+  if time then
+    table.insert(curl, "-w 'Fetched in %{time_total}s'")
   end
 
   if method == "GET" or method == "get" then
@@ -87,6 +92,16 @@ local function run_api(block)
 
   local response = vim.fn.system(cmd)
 
+  local lines = vim.split(response, "\n")
+  local maybe_time = lines[#lines] .. "\n\n"
+
+  if vim.startswith(maybe_time, "Fetched in") then
+    table.remove(lines, #lines)
+    response = table.concat(lines, "\n")
+  else
+    maybe_time = ""
+  end
+
   if json then
     local pretty_response = vim.fn.system("json_pp -json_opt indent,space_after", response)
     if vim.v.shell_error == 0 then
@@ -97,9 +112,9 @@ local function run_api(block)
   if info then
     local headers = util.readfile_string(tmp)
     vim.fn.delete(tmp)
-    return headers .. "\n" .. response
+    return maybe_time .. headers .. "\n" .. response
   else
-    return response
+    return maybe_time .. response
   end
 end
 
