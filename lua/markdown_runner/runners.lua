@@ -49,7 +49,7 @@ local function run_api(block)
   end
 
   if time then
-    table.insert(curl, "-w 'Fetched in %{time_total}s'")
+    table.insert(curl, "-w '\n\nFetched in %{time_total}s'")
   end
 
   if method == "GET" or method == "get" then
